@@ -22,6 +22,8 @@ CodeMirror.defineMode("coffeescript", function(conf) {
     return new RegExp("^((" + words.join(")|(") + "))\\b");
   }
 
+  var definition = /^\([\w\s\,\.='"]*\)\s*[=-]>/;
+  var args = /^\([\w\s\,\.='"]*\)/;
   var operators = /^(?:->|=>|\+[+=]?|-[\-=]?|\*[\*=]?|\/[\/=]?|[=!]=|<[><]?=?|>>?=?|%=?|&=?|\|=?|\^=?|\~|!|\?)/;
   var delimiters = /^(?:[()\[\]{},:`=;]|\.\.?\.?)/;
   var identifiers = /^[_A-Za-z$][_A-Za-z$0-9]*/;
@@ -145,6 +147,13 @@ CodeMirror.defineMode("coffeescript", function(conf) {
       }
     }
 
+    // Handle function definitions
+    if (stream.match(definition, false)) {
+      if(stream.match(args)) {
+        return "def";  
+      }
+    }
+
     // Handle operators and delimiters
     if (stream.match(operators) || stream.match(wordOperators)) {
       return "operator";
@@ -217,7 +226,7 @@ CodeMirror.defineMode("coffeescript", function(conf) {
     type = type || "coffee";
     var offset = 0, align = false, alignOffset = null;
     for (var scope = state.scope; scope; scope = scope.prev) {
-      if (scope.type === "coffee" || scope.type == "}") {
+      if (scope.type === "coffee") {
         offset = scope.offset + conf.indentUnit;
         break;
       }
@@ -278,7 +287,7 @@ CodeMirror.defineMode("coffeescript", function(conf) {
 
     // Handle scope changes.
     if (current === "return") {
-      state.dedent = true;
+      state.dedent += 1;
     }
     if (((current === "->" || current === "=>") &&
          !state.lambda &&
@@ -310,10 +319,9 @@ CodeMirror.defineMode("coffeescript", function(conf) {
       if (state.scope.type == current)
         state.scope = state.scope.prev;
     }
-    if (state.dedent && stream.eol()) {
-      if (state.scope.type == "coffee" && state.scope.prev)
-        state.scope = state.scope.prev;
-      state.dedent = false;
+    if (state.dedent > 0 && stream.eol() && state.scope.type == "coffee") {
+      if (state.scope.prev) state.scope = state.scope.prev;
+      state.dedent -= 1;
     }
 
     return style;
